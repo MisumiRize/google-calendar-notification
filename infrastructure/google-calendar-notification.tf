@@ -49,7 +49,7 @@ resource "heroku_app" "default" {
     AWS_ACCESS_KEY_ID = "${aws_iam_access_key.google_calendar_notification.id}"
     AWS_SECRET_ACCESS_KEY = "${aws_iam_access_key.google_calendar_notification.secret}"
     AWS_REGION = "${var.aws_region}"
-    AWS_S3_BUCKET_NAME = "{$var.aws_s3_bucket_name}"
+    AWS_S3_BUCKET_NAME = "${var.aws_s3_bucket_name}"
     TWITTER_CONSUMER_KEY = "${var.twitter_consumer_key}"
     TWITTER_CONSUMER_SECRET = "${var.twitter_consumer_secret}"
     TWITTER_ACCESS_TOKEN = "${var.twitter_access_token}"
