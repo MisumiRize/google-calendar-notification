@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"text/template"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -99,6 +100,20 @@ func saveToken(file string, token *oauth2.Token) {
 	}
 }
 
+func formatEvents(events []*calendar.Event) string {
+	tmpl := `{{range .}}{{.Summary}} ({{if .Start.DateTime}}{{.Start.DateTime}}{{else}}{{.Start.Date}}{{end}})
+{{end}}`
+	t := template.Must(template.New("t").Parse(tmpl))
+
+	b := &bytes.Buffer{}
+	err := t.Execute(b, events)
+	if err != nil {
+		log.Fatalf("Unable to execute template %v", err)
+	}
+
+	return b.String()
+}
+
 func main() {
 	ctx := context.Background()
 
@@ -129,17 +144,7 @@ func main() {
 
 	fmt.Println("Upcoming events:")
 	if len(events.Items) > 0 {
-		for _, i := range events.Items {
-			var when string
-			// If the DateTime is an empty string the Event is an all-day Event.
-			// So only Date is available.
-			if i.Start.DateTime != "" {
-				when = i.Start.DateTime
-			} else {
-				when = i.Start.Date
-			}
-			fmt.Printf("%s (%s)\n", i.Summary, when)
-		}
+		fmt.Printf(formatEvents(events.Items))
 	} else {
 		fmt.Printf("No upcoming events found.\n")
 	}
