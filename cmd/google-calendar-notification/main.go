@@ -6,28 +6,46 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"text/template"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/mrjones/oauth"
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
 	"google.golang.org/api/calendar/v3"
 )
 
 const (
-	authURI     = "https://accounts.google.com/o/oauth2/auth"
-	tokenURI    = "https://accounts.google.com/o/oauth2/token"
-	redirectURI = "urn:ietf:wg:oauth:2.0:oob"
+	authURI         = "https://accounts.google.com/o/oauth2/auth"
+	tokenURI        = "https://accounts.google.com/o/oauth2/token"
+	redirectURI     = "urn:ietf:wg:oauth:2.0:oob"
+	twitterEndpoint = "https://api.twitter.com/1.1/statuses/update.json"
 )
 
 var (
-	sess       = session.New()
-	svc        = s3.New(sess)
-	bucketName = aws.String(os.Getenv("AWS_S3_BUCKET_NAME"))
+	sess                     = session.New()
+	svc                      = s3.New(sess)
+	bucketName               = aws.String(os.Getenv("AWS_S3_BUCKET_NAME"))
+	twitterConsumerKey       = os.Getenv("TWITTER_CONSUMER_KEY")
+	twitterConsumerSecret    = os.Getenv("TWITTER_CONSUMER_SECRET")
+	twitterAccessToken       = os.Getenv("TWITTER_ACCESS_TOKEN")
+	twitterAccessTokenSecret = os.Getenv("TWITTER_ACCESS_TOKEN_SECRET")
+	consumer                 = oauth.NewConsumer(
+		twitterConsumerKey,
+		twitterConsumerSecret,
+		oauth.ServiceProvider{},
+	)
+	oauthAccessToken = &oauth.AccessToken{
+		Token:  twitterAccessToken,
+		Secret: twitterAccessTokenSecret,
+	}
+	client, _ = consumer.MakeHttpClient(oauthAccessToken)
 )
 
 // getClient uses a Context and Config to retrieve a Token
@@ -101,7 +119,8 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 func formatEvents(events []*calendar.Event) string {
-	tmpl := `{{range .}}{{.Summary}} ({{if .Start.DateTime}}{{.Start.DateTime}}{{else}}{{.Start.Date}}{{end}})
+	tmpl := `週末から来週にかけての予定です！
+{{range .}}{{.Summary}} ({{if .Start.DateTime}}{{.Start.DateTime}}{{else}}{{.Start.Date}}{{end}})
 {{end}}`
 	t := template.Must(template.New("t").Parse(tmpl))
 
@@ -112,6 +131,27 @@ func formatEvents(events []*calendar.Event) string {
 	}
 
 	return b.String()
+}
+
+func updateTwitter(params map[string]string) {
+	vals := url.Values{}
+	for k, v := range params {
+		vals.Add(k, v)
+	}
+
+	req, err := http.NewRequest("POST", twitterEndpoint, strings.NewReader(vals.Encode()))
+	if err != nil {
+		log.Fatalf("Unable to create HTTP request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("Unable to request twitter: %v", err)
+	}
+
+	log.Printf("Response: %v", res.Status)
 }
 
 func main() {
@@ -135,17 +175,18 @@ func main() {
 	}
 
 	from := time.Now().Format(time.RFC3339)
-	to := time.Now().AddDate(0, 0, 7).Format(time.RFC3339)
+	to := time.Now().AddDate(0, 0, 8).Format(time.RFC3339)
 	events, err := srv.Events.List("primary").ShowDeleted(false).SingleEvents(true).
 		TimeMin(from).TimeMax(to).MaxResults(10).OrderBy("startTime").Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve next ten of the user's events. %v", err)
 	}
 
-	fmt.Println("Upcoming events:")
 	if len(events.Items) > 0 {
-		fmt.Printf(formatEvents(events.Items))
+		updateTwitter(map[string]string{
+			"status": formatEvents(events.Items),
+		})
 	} else {
-		fmt.Printf("No upcoming events found.\n")
+		log.Printf("No upcoming events found.\n")
 	}
 }
