@@ -119,7 +119,7 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 func formatEvents(events []*calendar.Event) string {
-	tmpl := `週末から来週にかけての予定です！
+	tmpl := `これから一週間の予定です！
 {{range .}}{{.Summary}} ({{if .Start.DateTime}}{{.Start.DateTime}}{{else}}{{.Start.Date}}{{end}})
 {{end}}`
 	t := template.Must(template.New("t").Parse(tmpl))
