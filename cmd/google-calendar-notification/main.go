@@ -119,7 +119,7 @@ func saveToken(file string, token *oauth2.Token) {
 }
 
 func formatEvents(events []*calendar.Event) string {
-	tmpl := `これから一週間の予定です！
+	tmpl := `参加予定のイベントです！
 {{range .}}{{.Summary}} ({{if .Start.DateTime}}{{.Start.DateTime}}{{else}}{{.Start.Date}}{{end}})
 {{end}}`
 	t := template.Must(template.New("t").Parse(tmpl))
@@ -175,7 +175,7 @@ func main() {
 	}
 
 	from := time.Now().Format(time.RFC3339)
-	to := time.Now().AddDate(0, 0, 7).Format(time.RFC3339)
+	to := time.Now().AddDate(0, 0, 15).Format(time.RFC3339)
 	events, err := srv.Events.List("primary").ShowDeleted(false).SingleEvents(true).
 		TimeMin(from).TimeMax(to).MaxResults(10).OrderBy("startTime").Do()
 	if err != nil {

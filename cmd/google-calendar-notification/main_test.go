@@ -26,7 +26,7 @@ func TestFormatEvents(t *testing.T) {
 			},
 		},
 	})
-	if s != `これから一週間の予定です！
+	if s != `参加予定のイベントです！
 foo (2016-06-01 00:00:00)
 bar (2016-06-01)
 ` {
